@@ -25,7 +25,7 @@ except (SQLAlchemyError, RuntimeError):
     st.stop()
 
 with st.container(horizontal=True):
-    metric_card("Horas trabalhadas no mês", "—", "O cálculo de jornada será implementado em etapa futura.")
+    metric_card("Horas trabalhadas no mês", f"{summary['monthly_worked_hours']:.2f} h")
     metric_card("Dias trabalhados", str(summary["working_days"]))
     latest = summary["latest_punch"]
     latest_label = (
@@ -38,6 +38,7 @@ with st.container(horizontal=True):
 with st.container(horizontal=True):
     metric_card("Folgas planejadas", str(summary["planned_days_off"]))
     metric_card("Folgas realizadas", str(summary["completed_days_off"]))
+    metric_card("Horas extras no mês", f"{summary['monthly_overtime']:.2f} h")
 
 st.subheader("Sua jornada")
 schedule = summary["schedule"]
@@ -50,3 +51,7 @@ if schedule:
     )
 else:
     st.info("Configure sua jornada de referência nas Configurações.")
+if summary["incomplete_days"]:
+    st.warning(
+        f"{summary['incomplete_days']} dia(s) com marcações incompletas não entraram nas horas trabalhadas."
+    )

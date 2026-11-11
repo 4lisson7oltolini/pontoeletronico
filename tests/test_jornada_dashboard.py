@@ -60,6 +60,8 @@ def test_dashboard_summary_only_counts_authenticated_account(session):
     session.commit()
 
     summary = dashboard_summary(session, first.id, timestamp.date())
-    assert summary["working_days"] == 1
+    assert summary["working_days"] == 0
+    assert summary["incomplete_days"] == 1
+    assert summary["monthly_worked_hours"] == Decimal("0.00")
     assert summary["latest_punch"].usuario_id == first.id
     assert summary["latest_punch_time"].hour == 10

@@ -28,8 +28,8 @@ def apply_accessibility_preferences(preferences: PreferenciasAcessibilidade) -> 
         )
         dark = (
             "--pf-bg: #0b1220; --pf-panel: #111c2e; --pf-text: #f1f5f9; "
-            "--pf-muted: #cbd5e1; --pf-border: #475569; --pf-primary: #93c5fd; "
-            "--pf-primary-text: #0b1220;"
+            "--pf-muted: #cbd5e1; --pf-border: #475569; --pf-primary: #334155; "
+            "--pf-primary-text: #f8fafc;"
         )
 
     if preferences.tema == "escuro":
@@ -67,16 +67,55 @@ def apply_accessibility_preferences(preferences: PreferenciasAcessibilidade) -> 
             color: var(--pf-text);
         }}
         [data-testid="stCaptionContainer"] {{ color: var(--pf-muted); }}
+        [data-testid="stAlert"] {{
+            background-color: var(--pf-panel) !important;
+            border: 1px solid var(--pf-border);
+            color: var(--pf-text) !important;
+        }}
+        [data-testid="stAlert"] > div {{
+            background-color: transparent !important;
+            color: var(--pf-text) !important;
+        }}
+        [data-testid="stAlert"] [data-testid="stMarkdownContainer"],
+        [data-testid="stAlert"] p {{
+            color: var(--pf-text) !important;
+        }}
         [data-testid="stMetric"], [data-testid="stExpander"],
         [data-testid="stDataFrame"], [data-testid="stForm"] {{
             border-color: var(--pf-border);
         }}
-        [data-baseweb="input"] > div, [data-baseweb="textarea"] > div,
-        [data-baseweb="select"] > div, [data-testid="stDateInput"] input,
-        [data-testid="stTimeInput"] input {{
-            background: var(--pf-panel);
-            color: var(--pf-text);
-            border-color: var(--pf-border);
+        [data-testid="stTextInput"] [data-testid="stTextInputField"],
+        [data-testid="stTextArea"] [data-testid="stTextAreaRootElement"],
+        [data-testid="stTextArea"] textarea,
+        [data-testid="stDateInput"] [data-testid="stDateInputField"],
+        [data-testid="stDateInput"] [data-react-aria-pressable="true"],
+        [data-testid="stTimeInput"] [data-testid="stTimeInputField"],
+        [data-testid="stTimeInput"] [data-react-aria-pressable="true"],
+        [data-testid="stNumberInput"] input,
+        [data-testid="stSelectbox"] [role="combobox"],
+        [data-testid="stMultiSelect"] [role="combobox"] {{
+            background-color: var(--pf-panel) !important;
+            color: var(--pf-text) !important;
+            border-color: var(--pf-border) !important;
+        }}
+        [data-testid="stDateInput"] [role="spinbutton"],
+        [data-testid="stTimeInput"] [role="spinbutton"] {{
+            color: var(--pf-text) !important;
+        }}
+        [data-testid="stDateInputCalendarButton"] {{
+            background-color: var(--pf-panel) !important;
+            border: 1px solid var(--pf-border) !important;
+            color: var(--pf-text) !important;
+        }}
+        [data-testid="stDateInputCalendarButton"]:hover,
+        [data-testid="stDateInputCalendarButton"]:focus-visible {{
+            background-color: var(--pf-bg) !important;
+            color: var(--pf-text) !important;
+        }}
+        [data-testid="stTextInput"] [data-testid="stTextInputField"]::placeholder,
+        [data-testid="stTextArea"] textarea::placeholder,
+        [data-testid="stNumberInput"] input::placeholder {{
+            color: var(--pf-muted) !important;
         }}
         [data-testid="stButton"] button, [data-testid="stFormSubmitButton"] button {{
             min-height: 2.75rem;

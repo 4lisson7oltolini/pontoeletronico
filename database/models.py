@@ -155,7 +155,7 @@ class ConfiguracaoJornada(Base):
         Numeric(4, 2), nullable=False, default=Decimal("8.00")
     )
     horas_semanais_referencia: Mapped[Decimal] = mapped_column(
-        Numeric(5, 2), nullable=False, default=Decimal("40.00")
+        Numeric(5, 2), nullable=False, default=Decimal("48.00")
     )
     horario_entrada_preferencial: Mapped[time | None] = mapped_column(Time)
     horario_saida_preferencial: Mapped[time | None] = mapped_column(Time)

@@ -25,6 +25,27 @@ def test_punch_sequence_is_enforced(session, monkeypatch):
         register_punch(session, user.id, "entrada")
 
 
+def test_final_punch_after_midnight_continues_yesterdays_shift(session, monkeypatch):
+    user = register_user(session, "Ana Silva", "ana@example.com", "senha-segura-123")
+    timestamps = iter(
+        [
+            datetime(2026, 11, 11, 14, 0, tzinfo=ZoneInfo("America/Sao_Paulo")),
+            datetime(2026, 11, 11, 18, 0, tzinfo=ZoneInfo("America/Sao_Paulo")),
+            datetime(2026, 11, 11, 18, 30, tzinfo=ZoneInfo("America/Sao_Paulo")),
+            datetime(2026, 11, 12, 0, 0, tzinfo=ZoneInfo("America/Sao_Paulo")),
+        ]
+    )
+    monkeypatch.setattr("services.ponto_service.now_local", lambda: next(timestamps))
+
+    punches = [
+        register_punch(session, user.id, kind)
+        for kind in ("entrada", "saida_intervalo", "retorno_intervalo", "saida")
+    ]
+
+    assert punches[-1].data_hora.date() == datetime(2026, 11, 12).date()
+    assert punches[-1].tipo_registro == "saida"
+
+
 def test_punch_rejects_unknown_kind(session):
     user = register_user(session, "Ana Silva", "ana@example.com", "senha-segura-123")
     with pytest.raises(PontoError, match="Tipo"):

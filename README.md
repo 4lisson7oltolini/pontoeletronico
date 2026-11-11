@@ -72,6 +72,12 @@ Na tela **Histórico**, é possível corrigir marcações e adicionar marcaçõe
 
 Em **Configurações pessoais**, tema (claro, escuro ou conforme o dispositivo), alto contraste, tamanho do texto e redução de animações são salvos por conta.
 
+## Relatórios e exportação Excel
+
+A tela **Relatórios mensais** apresenta horas trabalhadas e previstas, saldo, horas extras diárias e semanais, resumo semanal, detalhamento diário, marcações incompletas e histórico de ajustes. O Excel exportado contém as abas **Resumo**, **Detalhamento diário** e **Histórico de ajustes**.
+
+O cálculo usa a jornada diária e semanal configurada, considera as folgas planejadas/realizadas e os feriados cadastrados por conta como dias sem jornada prevista, inclui o intervalo entre entrada e saída final na duração e atribui turnos que passam da meia-noite ao dia da entrada. Horas extras semanais adicionais descontam as extras diárias já contabilizadas. Se a jornada for de 8 horas por dia e uma folga semanal, configure 48 horas semanais em **Configurações pessoais**. Dias sem as quatro marcações esperadas são sinalizados como incompletos e não entram nas horas trabalhadas.
+
 ## Testes
 
 ```powershell
@@ -80,4 +86,4 @@ pytest
 
 ## Escopo atual
 
-Inclui cadastro/login, sessão autenticada, isolamento por conta, painel inicial, configuração de jornada, registros com sequência validada, planejamento e atualização de folgas, migração inicial e testes. O painel ainda não calcula horas trabalhadas; cálculos completos e exportação Excel são etapas futuras.
+Inclui cadastro/login, sessão autenticada, isolamento por conta, painel inicial, configuração de jornada, registros com sequência validada, planejamento e atualização de folgas, correções retroativas auditadas, relatórios mensais e exportação Excel. Cálculos financeiros de folha, adicionais legais e regras específicas de convenções coletivas não fazem parte do sistema.

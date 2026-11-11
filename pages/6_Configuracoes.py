@@ -101,8 +101,9 @@ with st.form("schedule_form"):
         "Horas semanais de referência",
         min_value=0.25,
         max_value=168.0,
-        value=float(schedule.horas_semanais_referencia) if schedule else 40.0,
+        value=float(schedule.horas_semanais_referencia) if schedule else 48.0,
         step=0.25,
+        help="Para uma jornada de 8 horas por dia e uma folga semanal, a referência é 48 horas.",
     )
     col_start, col_end = st.columns(2)
     with col_start:

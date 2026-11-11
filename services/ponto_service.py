@@ -15,12 +15,6 @@ class PontoError(ValueError):
     """Raised when a time punch or correction violates business rules."""
 
 
-def _day_bounds(timestamp: datetime) -> tuple[datetime, datetime]:
-    local_timestamp = _to_local(timestamp)
-    start = datetime.combine(local_timestamp.date(), time.min, tzinfo=app_timezone())
-    return start, start + timedelta(days=1)
-
-
 def _to_local(timestamp: datetime) -> datetime:
     if timestamp.tzinfo is None or timestamp.utcoffset() is None:
         return timestamp.replace(tzinfo=app_timezone())
@@ -139,24 +133,45 @@ def register_punch(
         raise PontoError("Conta não encontrada ou inativa.")
 
     timestamp = now_local()
-    day_start, day_end = _day_bounds(timestamp)
-    last_punch = session.scalar(
-        select(RegistroPonto)
-        .where(
-            RegistroPonto.usuario_id == user_id,
-            RegistroPonto.data_hora >= day_start,
-            RegistroPonto.data_hora < day_end,
+    existing_punches = list(
+        session.scalars(
+            select(RegistroPonto)
+            .where(RegistroPonto.usuario_id == user_id)
+            .order_by(RegistroPonto.data_hora, RegistroPonto.id)
         )
-        .order_by(RegistroPonto.data_hora.desc(), RegistroPonto.id.desc())
-        .limit(1)
     )
-    expected_type = (
-        PUNCH_SEQUENCE[0]
-        if last_punch is None
-        else PUNCH_SEQUENCE[PUNCH_SEQUENCE.index(last_punch.tipo_registro) + 1]
-        if last_punch.tipo_registro != PUNCH_SEQUENCE[-1]
-        else None
+    effective_times = effective_punch_times(session, user_id, existing_punches)
+    ordered_punches = sorted(
+        existing_punches,
+        key=lambda punch: (effective_times[punch.id], punch.id),
     )
+    open_shift: list[RegistroPonto] = []
+    for existing in ordered_punches:
+        if existing.tipo_registro == PUNCH_SEQUENCE[0]:
+            open_shift = [existing]
+        elif open_shift:
+            open_shift.append(existing)
+            if existing.tipo_registro == PUNCH_SEQUENCE[-1]:
+                open_shift = []
+
+    active_start = effective_times[open_shift[0].id] if open_shift else None
+    active_shift_is_current = bool(
+        active_start
+        and timedelta(0) <= timestamp - active_start <= timedelta(hours=24)
+    )
+    has_entry_today = any(
+        existing.tipo_registro == PUNCH_SEQUENCE[0]
+        and effective_times[existing.id].date() == timestamp.date()
+        for existing in existing_punches
+    )
+    expected_type = "" if has_entry_today else PUNCH_SEQUENCE[0]
+    if active_shift_is_current and open_shift:
+        last_kind = open_shift[-1].tipo_registro
+        expected_type = (
+            PUNCH_SEQUENCE[PUNCH_SEQUENCE.index(last_kind) + 1]
+            if last_kind != PUNCH_SEQUENCE[-1]
+            else ""
+        )
     if expected_type != tipo_registro:
         raise PontoError(
             f"Marcação fora de sequência. Próxima marcação esperada: "
