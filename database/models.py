@@ -34,6 +34,16 @@ class Usuario(Base):
     senha_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     ativo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    tema_preferencia: Mapped[str] = mapped_column(
+        String(12), nullable=False, default="sistema"
+    )
+    alto_contraste: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    escala_texto: Mapped[Decimal] = mapped_column(
+        Numeric(3, 2), nullable=False, default=Decimal("1.00")
+    )
+    reduzir_animacoes: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
 
     registros_ponto: Mapped[list["RegistroPonto"]] = relationship(
         back_populates="usuario", cascade="all, delete-orphan"
@@ -108,6 +118,9 @@ class AjustePonto(Base):
             ondelete="RESTRICT",
             name="fk_ajustes_registro_do_usuario",
         ),
+        CheckConstraint(
+            "operacao IN ('correcao', 'inclusao')", name="ck_ajustes_ponto_operacao"
+        ),
         Index("ix_ajustes_ponto_usuario_data", "usuario_id", "criado_em"),
     )
 
@@ -119,6 +132,7 @@ class AjustePonto(Base):
     horario_original: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     horario_corrigido: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     justificativa: Mapped[str] = mapped_column(String(1000), nullable=False)
+    operacao: Mapped[str] = mapped_column(String(12), nullable=False, default="correcao")
     criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     usuario: Mapped[Usuario] = relationship(back_populates="ajustes_ponto")

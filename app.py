@@ -6,11 +6,16 @@ import streamlit as st
 from sqlalchemy.exc import SQLAlchemyError
 
 from database.connection import session_scope
+from services.preferencias_service import (
+    PreferenciasError,
+    get_accessibility_preferences,
+)
 from services.auth_service import (
     AuthenticationError,
     authenticate_user,
     register_user,
 )
+from utils.accessibility import apply_accessibility_preferences
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -89,6 +94,21 @@ if not isinstance(st.session_state.get("user_id"), int):
         position="hidden",
     )
 else:
+    try:
+        with session_scope() as session:
+            preferences = get_accessibility_preferences(
+                session, st.session_state["user_id"]
+            )
+        apply_accessibility_preferences(preferences)
+    except PreferenciasError:
+        st.session_state.pop("user_id", None)
+        st.session_state.pop("user_name", None)
+        st.rerun()
+    except (SQLAlchemyError, RuntimeError):
+        logger.exception("Falha ao carregar preferências de acessibilidade.")
+        st.error("Não foi possível carregar sua conta. Verifique a conexão com o banco.")
+        st.stop()
+
     pages = [
         st.Page("pages/1_Dashboard.py", title="Dashboard", icon=":material/dashboard:", default=True),
         st.Page("pages/2_Registrar_Ponto.py", title="Registrar ponto", icon=":material/schedule:"),

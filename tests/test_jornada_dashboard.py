@@ -4,7 +4,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from database.models import RegistroPonto
+from database.models import AjustePonto, RegistroPonto
 from services.auth_service import register_user
 from services.dashboard_service import dashboard_summary
 from services.jornada_service import JornadaError, get_schedule, save_schedule
@@ -30,26 +30,36 @@ def test_dashboard_summary_only_counts_authenticated_account(session):
     first = register_user(session, "Conta Um", "um@example.com", "senha-conta-um-123")
     second = register_user(session, "Conta Dois", "dois@example.com", "senha-conta-dois-123")
     timestamp = datetime(2026, 11, 10, 9, 0, tzinfo=ZoneInfo("America/Sao_Paulo"))
-    session.add_all(
-        [
-            RegistroPonto(
-                usuario_id=first.id,
-                tipo_registro="entrada",
-                data_hora=timestamp,
-                origem="web",
-                criado_em=timestamp,
-            ),
-            RegistroPonto(
-                usuario_id=second.id,
-                tipo_registro="entrada",
-                data_hora=timestamp,
-                origem="web",
-                criado_em=timestamp,
-            ),
-        ]
+    first_punch = RegistroPonto(
+        usuario_id=first.id,
+        tipo_registro="entrada",
+        data_hora=timestamp,
+        origem="web",
+        criado_em=timestamp,
+    )
+    second_punch = RegistroPonto(
+        usuario_id=second.id,
+        tipo_registro="entrada",
+        data_hora=timestamp,
+        origem="web",
+        criado_em=timestamp,
+    )
+    session.add_all([first_punch, second_punch])
+    session.commit()
+    session.add(
+        AjustePonto(
+            usuario_id=first.id,
+            registro_ponto_id=first_punch.id,
+            horario_original=timestamp,
+            horario_corrigido=timestamp.replace(hour=10),
+            justificativa="Correção de teste",
+            operacao="correcao",
+            criado_em=timestamp,
+        )
     )
     session.commit()
 
     summary = dashboard_summary(session, first.id, timestamp.date())
     assert summary["working_days"] == 1
     assert summary["latest_punch"].usuario_id == first.id
+    assert summary["latest_punch_time"].hour == 10

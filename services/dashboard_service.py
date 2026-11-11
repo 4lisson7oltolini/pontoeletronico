@@ -1,13 +1,13 @@
 """Account-scoped dashboard summaries without full work-hour calculations."""
 
 from calendar import monthrange
-from datetime import date, datetime, time
+from datetime import date
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from database.models import ConfiguracaoJornada, Folga, RegistroPonto
-from utils.datetime_utils import app_timezone
+from database.models import ConfiguracaoJornada, Folga
+from services.ponto_service import effective_punch_times, list_punches
 
 
 def dashboard_summary(session: Session, user_id: int, today: date) -> dict:
@@ -18,20 +18,19 @@ def dashboard_summary(session: Session, user_id: int, today: date) -> dict:
         today.month % 12 + 1,
         1,
     )
-    timezone = app_timezone()
-    month_start_at = datetime.combine(month_start, time.min, tzinfo=timezone)
-    next_month_at = datetime.combine(next_month, time.min, tzinfo=timezone)
-
-    entry_times = session.scalars(
-        select(RegistroPonto.data_hora).where(
-            RegistroPonto.usuario_id == user_id,
-            RegistroPonto.tipo_registro == "entrada",
-            RegistroPonto.data_hora >= month_start_at,
-            RegistroPonto.data_hora < next_month_at,
-        )
-    )
+    all_punches = list_punches(session, user_id)
+    effective_times = effective_punch_times(session, user_id, all_punches)
+    month_punches = [
+        punch
+        for punch in all_punches
+        if month_start <= effective_times[punch.id].date() < next_month
+    ]
     working_days = len(
-        {timestamp.astimezone(timezone).date() for timestamp in entry_times}
+        {
+            effective_times[punch.id].date()
+            for punch in month_punches
+            if punch.tipo_registro == "entrada"
+        }
     )
     planned_days_off = session.scalar(
         select(func.count(Folga.id)).where(
@@ -49,11 +48,10 @@ def dashboard_summary(session: Session, user_id: int, today: date) -> dict:
             Folga.data <= month_end,
         )
     )
-    latest = session.scalar(
-        select(RegistroPonto)
-        .where(RegistroPonto.usuario_id == user_id)
-        .order_by(RegistroPonto.data_hora.desc(), RegistroPonto.id.desc())
-        .limit(1)
+    latest = max(
+        all_punches,
+        key=lambda punch: (effective_times[punch.id], punch.id),
+        default=None,
     )
     schedule = session.scalar(
         select(ConfiguracaoJornada).where(ConfiguracaoJornada.usuario_id == user_id)
@@ -63,5 +61,6 @@ def dashboard_summary(session: Session, user_id: int, today: date) -> dict:
         "planned_days_off": planned_days_off or 0,
         "completed_days_off": completed_days_off or 0,
         "latest_punch": latest,
+        "latest_punch_time": effective_times[latest.id] if latest else None,
         "schedule": schedule,
     }

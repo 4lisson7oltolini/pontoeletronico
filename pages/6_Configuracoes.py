@@ -9,6 +9,12 @@ from components.auth import require_user
 from components.sidebar import render_sidebar
 from database.connection import session_scope
 from services.jornada_service import JornadaError, get_schedule, save_schedule
+from services.preferencias_service import (
+    PreferenciasError,
+    get_accessibility_preferences,
+    save_accessibility_preferences,
+)
+from utils.accessibility import text_scale_from_label, text_scale_label
 
 logger = logging.getLogger(__name__)
 user_id, user_name = require_user()
@@ -18,11 +24,71 @@ st.title("Configurações pessoais")
 try:
     with session_scope() as session:
         schedule = get_schedule(session, user_id)
-except (SQLAlchemyError, RuntimeError):
+        preferences = get_accessibility_preferences(session, user_id)
+except (PreferenciasError, SQLAlchemyError, RuntimeError):
     logger.exception("Falha ao carregar configurações.")
     st.error("Não foi possível carregar suas configurações.")
     st.stop()
 
+st.subheader("Acessibilidade e aparência")
+theme_options = {
+    "Sistema (acompanhar o dispositivo)": "sistema",
+    "Claro": "claro",
+    "Escuro": "escuro",
+}
+scale_options = [
+    "90% (compacto)",
+    "100% (padrão)",
+    "110%",
+    "125%",
+    "150% (ampliado)",
+]
+with st.form("accessibility_preferences_form"):
+    selected_theme = st.selectbox(
+        "Tema",
+        list(theme_options),
+        index=list(theme_options.values()).index(preferences.tema),
+        help="A opção Sistema acompanha a preferência de claro/escuro do dispositivo.",
+    )
+    high_contrast = st.checkbox(
+        "Alto contraste",
+        value=preferences.alto_contraste,
+        help="Aumenta o contraste de texto, superfícies, bordas e elementos principais.",
+    )
+    text_size = st.selectbox(
+        "Tamanho do texto",
+        scale_options,
+        index=scale_options.index(text_scale_label(preferences.escala_texto)),
+    )
+    reduced_motion = st.checkbox(
+        "Reduzir animações",
+        value=preferences.reduzir_animacoes,
+        help="Reduz animações e transições da interface.",
+    )
+    accessibility_submitted = st.form_submit_button(
+        "Salvar acessibilidade", type="primary"
+    )
+if accessibility_submitted:
+    try:
+        with session_scope() as session:
+            save_accessibility_preferences(
+                session,
+                user_id,
+                theme_options[selected_theme],
+                high_contrast,
+                text_scale_from_label(text_size),
+                reduced_motion,
+            )
+        st.success("Preferências salvas.")
+        st.rerun()
+    except PreferenciasError as exc:
+        st.warning(str(exc))
+    except (SQLAlchemyError, RuntimeError):
+        logger.exception("Falha ao salvar preferências de acessibilidade.")
+        st.error("Não foi possível salvar suas preferências.")
+
+st.divider()
+st.subheader("Jornada de referência")
 with st.form("schedule_form"):
     daily = st.number_input(
         "Horas diárias de referência",

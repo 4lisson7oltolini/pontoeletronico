@@ -60,6 +60,18 @@ alembic upgrade head
 
 Migrações apontam para PostgreSQL via `DATABASE_URL`. Os testes usam SQLite em memória somente como banco efêmero de teste; SQLite não é banco de produção.
 
+Ao atualizar uma instalação existente, aplique as novas migrações antes de iniciar o app:
+
+```powershell
+alembic upgrade head
+```
+
+## Ajustes retroativos e acessibilidade
+
+Na tela **Histórico**, é possível corrigir marcações e adicionar marcações esquecidas em dias anteriores a hoje do mês atual. Toda mudança exige justificativa; registros originais são preservados e o horário corrigido passa a ser o horário efetivo exibido. A sequência de marcações é validada e os dados continuam limitados à conta autenticada.
+
+Em **Configurações pessoais**, tema (claro, escuro ou conforme o dispositivo), alto contraste, tamanho do texto e redução de animações são salvos por conta.
+
 ## Testes
 
 ```powershell

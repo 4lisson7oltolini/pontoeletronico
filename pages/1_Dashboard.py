@@ -30,7 +30,7 @@ with st.container(horizontal=True):
     latest = summary["latest_punch"]
     latest_label = (
         f"{latest.tipo_registro.replace('_', ' ').title()} · "
-        f"{latest.data_hora:%d/%m %H:%M}"
+        f"{summary['latest_punch_time']:%d/%m %H:%M}"
         if latest
         else "—"
     )
