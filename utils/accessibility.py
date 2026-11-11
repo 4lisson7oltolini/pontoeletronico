@@ -82,10 +82,19 @@ def apply_accessibility_preferences(preferences: PreferenciasAcessibilidade) -> 
             min-height: 2.75rem;
             border-color: var(--pf-border);
         }}
-        [data-testid="stButton"] button[kind="primary"],
-        [data-testid="stFormSubmitButton"] button[kind="primary"] {{
-            background: var(--pf-primary);
-            color: var(--pf-primary-text);
+        [data-testid^="stBaseButton-primary"] {{
+            background-color: var(--pf-primary) !important;
+            border-color: var(--pf-primary) !important;
+            color: var(--pf-primary-text) !important;
+        }}
+        [data-testid^="stBaseButton-secondary"],
+        [data-testid^="stBaseButton-tertiary"] {{
+            background-color: var(--pf-panel) !important;
+            border-color: var(--pf-border) !important;
+            color: var(--pf-text) !important;
+        }}
+        [data-testid^="stBaseButton-primary"]:hover {{
+            filter: brightness(1.12);
         }}
         {motion}
         </style>
