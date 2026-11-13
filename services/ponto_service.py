@@ -2,7 +2,7 @@
 
 from datetime import date, datetime, time, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from database.models import AjustePonto, RegistroPonto, Usuario
@@ -60,6 +60,36 @@ def effective_punch_times(
         )
         for punch in punches
     }
+
+
+def latest_punch(
+    session: Session, user_id: int
+) -> tuple[RegistroPonto | None, datetime | None]:
+    latest_adjustment_time = (
+        select(AjustePonto.horario_corrigido)
+        .where(
+            AjustePonto.usuario_id == user_id,
+            AjustePonto.registro_ponto_id == RegistroPonto.id,
+        )
+        .order_by(AjustePonto.criado_em.desc(), AjustePonto.id.desc())
+        .limit(1)
+        .correlate(RegistroPonto)
+        .scalar_subquery()
+    )
+    effective_time = func.coalesce(
+        latest_adjustment_time, RegistroPonto.data_hora
+    )
+    statement = (
+        select(RegistroPonto, effective_time)
+        .where(RegistroPonto.usuario_id == user_id)
+        .order_by(effective_time.desc(), RegistroPonto.id.desc())
+        .limit(1)
+    )
+    result = session.execute(statement).first()
+    if result is None:
+        return None, None
+    punch, adjusted_time = result
+    return punch, _to_local(adjusted_time or punch.data_hora)
 
 
 def _validate_day_sequence(

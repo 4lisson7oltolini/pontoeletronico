@@ -122,6 +122,13 @@ class AjustePonto(Base):
             "operacao IN ('correcao', 'inclusao')", name="ck_ajustes_ponto_operacao"
         ),
         Index("ix_ajustes_ponto_usuario_data", "usuario_id", "criado_em"),
+        Index(
+            "ix_ajustes_usuario_registro_data",
+            "usuario_id",
+            "registro_ponto_id",
+            "criado_em",
+            "id",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)

@@ -6,14 +6,12 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from components.auth import require_user
 from components.calendario import month_bounds, show_days_off
-from components.sidebar import render_sidebar
 from database.connection import session_scope
 from services.folga_service import FolgaError, list_days_off, plan_day_off, update_day_off
 from utils.datetime_utils import now_local
 
 logger = logging.getLogger(__name__)
-user_id, user_name = require_user()
-render_sidebar(user_name)
+user_id, _ = require_user()
 
 st.title("Calendário e folgas")
 selected_day = st.date_input("Selecione uma data", value=now_local().date())

@@ -6,7 +6,6 @@ import streamlit as st
 from sqlalchemy.exc import SQLAlchemyError
 
 from components.auth import require_user
-from components.sidebar import render_sidebar
 from database.connection import session_scope
 from services.ponto_service import (
     PUNCH_SEQUENCE,
@@ -20,8 +19,7 @@ from services.ponto_service import (
 from utils.datetime_utils import app_timezone, now_local
 
 logger = logging.getLogger(__name__)
-user_id, user_name = require_user()
-render_sidebar(user_name)
+user_id, _ = require_user()
 
 st.title("Histórico de ponto")
 today = now_local().date()

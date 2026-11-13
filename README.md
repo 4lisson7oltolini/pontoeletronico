@@ -78,6 +78,8 @@ A tela **Relatórios mensais** apresenta horas trabalhadas e previstas, saldo, h
 
 O cálculo usa a jornada diária e semanal configurada, considera as folgas planejadas/realizadas e os feriados cadastrados por conta como dias sem jornada prevista, inclui o intervalo entre entrada e saída final na duração e atribui turnos que passam da meia-noite ao dia da entrada. Horas extras semanais adicionais descontam as extras diárias já contabilizadas. Se a jornada for de 8 horas por dia e uma folga semanal, configure 48 horas semanais em **Configurações pessoais**. Dias sem as quatro marcações esperadas são sinalizados como incompletos e não entram nas horas trabalhadas.
 
+Os relatórios são gerados somente após confirmar o período e ficam disponíveis durante a sessão até uma nova solicitação. As consultas limitam as marcações à janela do mês e às semanas envolvidas, com margem para turnos noturnos; o arquivo Excel é reutilizado ao baixar. O dashboard consulta a última marcação diretamente, sem carregar todo o histórico da conta.
+
 ## Testes
 
 ```powershell

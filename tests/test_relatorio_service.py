@@ -10,6 +10,7 @@ from services.auth_service import register_user
 from services.relatorio_service import (
     build_monthly_report,
     export_monthly_report_xlsx,
+    monthly_punches,
 )
 
 LOCAL = ZoneInfo("America/Sao_Paulo")
@@ -209,3 +210,24 @@ def test_excel_report_contains_summary_daily_and_audit_sheets(session):
     assert workbook.sheetnames == ["Resumo", "Detalhamento diário", "Histórico de ajustes"]
     assert workbook["Resumo"]["A1"].value == "Indicador"
     assert workbook["Detalhamento diário"]["A1"].value == "Data de trabalho"
+
+
+def test_monthly_punch_query_does_not_load_unrelated_account_history(session):
+    user = _create_user_with_schedule(session)
+    old_time = datetime(2020, 1, 10, 9, tzinfo=LOCAL)
+    month_time = datetime(2026, 11, 11, 9, tzinfo=LOCAL)
+    for timestamp in (old_time, month_time):
+        session.add(
+            RegistroPonto(
+                usuario_id=user.id,
+                tipo_registro="entrada",
+                data_hora=timestamp,
+                origem="web",
+                criado_em=timestamp,
+            )
+        )
+    session.commit()
+
+    punches = monthly_punches(session, user.id, 2026, 11)
+
+    assert [punch.data_hora.year for punch in punches] == [2026]

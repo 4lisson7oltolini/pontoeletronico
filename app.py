@@ -15,6 +15,7 @@ from services.auth_service import (
     authenticate_user,
     register_user,
 )
+from components.sidebar import render_account_header
 from utils.accessibility import apply_accessibility_preferences
 
 logging.basicConfig(level=logging.INFO)
@@ -118,4 +119,5 @@ else:
         st.Page("pages/6_Configuracoes.py", title="Configurações", icon=":material/settings:"),
     ]
     navigation = st.navigation(pages)
+    render_account_header(st.session_state.get("user_name", ""))
 navigation.run()

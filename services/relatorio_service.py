@@ -68,10 +68,12 @@ def monthly_punches(
 ) -> list[RegistroPonto]:
     _validate_period(year, month)
     first_day = date(year, month, 1)
-    next_month = date(year + (1 if month == 12 else 0), month % 12 + 1, 1)
+    last_day = report_period_end(year, month)
+    first_week_day = first_day - timedelta(days=first_day.weekday())
+    last_week_day = last_day + timedelta(days=6 - last_day.weekday())
     timezone = app_timezone()
-    start = datetime.combine(first_day, time.min, tzinfo=timezone)
-    end = datetime.combine(next_month, time.min, tzinfo=timezone)
+    start = datetime.combine(first_week_day - timedelta(days=1), time.min, tzinfo=timezone)
+    end = datetime.combine(last_week_day + timedelta(days=2), time.min, tzinfo=timezone)
     return list_punches(session, user_id, start, end)
 
 
@@ -229,7 +231,14 @@ def build_monthly_report(
     if (as_of or now_local().date()).year == year and (as_of or now_local().date()).month == month:
         last_week_day = min(last_week_day, effective_end)
 
-    punches = list_punches(session, user_id)
+    report_punches = monthly_punches(session, user_id, year, month)
+    punches = [
+        punch
+        for punch in report_punches
+        if first_week_day - timedelta(days=1)
+        <= punch.data_hora.astimezone(app_timezone()).date()
+        <= last_week_day + timedelta(days=1)
+    ]
     effective_times = effective_punch_times(session, user_id, punches)
     workday_groups = _workday_groups(punches, effective_times)
     days_off, holidays = _scheduled_days_data(
@@ -329,6 +338,7 @@ def build_monthly_report(
         "month": month,
         "daily_hours": daily_hours,
         "weekly_hours": weekly_hours,
+        "schedule": schedule,
         "daily_rows": daily_rows,
         "weekly_rows": month_weeks,
         "adjustments": adjustments,

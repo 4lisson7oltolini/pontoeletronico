@@ -4,13 +4,11 @@ import streamlit as st
 from sqlalchemy.exc import SQLAlchemyError
 
 from components.auth import require_user
-from components.sidebar import render_sidebar
 from database.connection import session_scope
 from services.ponto_service import PUNCH_SEQUENCE, PontoError, register_punch
 
 logger = logging.getLogger(__name__)
-user_id, user_name = require_user()
-render_sidebar(user_name)
+user_id, _ = require_user()
 
 st.title("Registrar ponto")
 st.write("As marcações usam o horário do servidor no fuso configurado. Registros não são sobrescritos.")

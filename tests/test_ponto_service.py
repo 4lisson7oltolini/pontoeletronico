@@ -3,9 +3,14 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from database.models import RegistroPonto
+from database.models import AjustePonto, RegistroPonto
 from services.auth_service import register_user
-from services.ponto_service import PontoError, correct_punch, register_punch
+from services.ponto_service import (
+    PontoError,
+    correct_punch,
+    latest_punch,
+    register_punch,
+)
 
 
 def test_punch_sequence_is_enforced(session, monkeypatch):
@@ -76,3 +81,49 @@ def test_correction_creates_audit_without_overwriting_original(session):
     assert adjustment.registro_ponto_id == record.id
     assert adjustment.horario_original == original_time
     assert record.data_hora.replace(tzinfo=ZoneInfo("America/Sao_Paulo")) == original_time
+
+
+def test_latest_punch_query_uses_effective_time_and_account_scope(session):
+    first = register_user(session, "Conta Um", "um@example.com", "senha-conta-um-123")
+    second = register_user(session, "Conta Dois", "dois@example.com", "senha-conta-dois-123")
+    base = datetime(2026, 11, 10, 9, tzinfo=ZoneInfo("America/Sao_Paulo"))
+    earlier = RegistroPonto(
+        usuario_id=first.id,
+        tipo_registro="entrada",
+        data_hora=base,
+        origem="web",
+        criado_em=base,
+    )
+    later = RegistroPonto(
+        usuario_id=first.id,
+        tipo_registro="saida",
+        data_hora=base.replace(hour=17),
+        origem="web",
+        criado_em=base.replace(hour=17),
+    )
+    other_user = RegistroPonto(
+        usuario_id=second.id,
+        tipo_registro="entrada",
+        data_hora=base.replace(day=11),
+        origem="web",
+        criado_em=base.replace(day=11),
+    )
+    session.add_all([earlier, later, other_user])
+    session.commit()
+    session.add(
+        AjustePonto(
+            usuario_id=first.id,
+            registro_ponto_id=earlier.id,
+            horario_original=base,
+            horario_corrigido=base.replace(day=12, hour=20),
+            justificativa="Correção",
+            operacao="correcao",
+            criado_em=base.replace(day=12, hour=20),
+        )
+    )
+    session.commit()
+
+    punch, effective_time = latest_punch(session, first.id)
+
+    assert punch.id == earlier.id
+    assert effective_time.date() == base.replace(day=12).date()

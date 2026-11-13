@@ -5,14 +5,12 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from components.auth import require_user
 from components.cards import metric_card
-from components.sidebar import render_sidebar
 from database.connection import session_scope
 from services.dashboard_service import dashboard_summary
 from utils.datetime_utils import now_local
 
 logger = logging.getLogger(__name__)
-user_id, user_name = require_user()
-render_sidebar(user_name)
+user_id, _ = require_user()
 
 st.title("Dashboard")
 st.caption("Resumo pessoal da sua jornada neste mês.")
