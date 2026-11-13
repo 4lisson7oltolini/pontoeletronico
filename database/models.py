@@ -26,13 +26,22 @@ class Base(DeclarativeBase):
 
 class Usuario(Base):
     __tablename__ = "usuarios"
-    __table_args__ = (Index("ix_usuarios_email", "email", unique=True),)
+    __table_args__ = (
+        CheckConstraint(
+            "perfil IN ('admin', 'rh', 'funcionario')",
+            name="ck_usuarios_perfil",
+        ),
+        Index("ix_usuarios_email", "email", unique=True),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     nome: Mapped[str] = mapped_column(String(120), nullable=False)
     email: Mapped[str] = mapped_column(String(254), nullable=False)
     senha_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    perfil: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="funcionario", server_default="funcionario"
+    )
     ativo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     tema_preferencia: Mapped[str] = mapped_column(
         String(12), nullable=False, default="sistema"

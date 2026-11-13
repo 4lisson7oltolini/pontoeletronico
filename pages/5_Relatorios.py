@@ -13,7 +13,7 @@ from services.relatorio_service import (
 from utils.datetime_utils import now_local
 
 logger = logging.getLogger(__name__)
-user_id, _ = require_user()
+user_id, user_name = require_user()
 
 st.title("Relatórios mensais")
 today = now_local().date()

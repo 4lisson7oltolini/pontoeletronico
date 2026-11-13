@@ -22,12 +22,24 @@ def test_primary_button_styles_match_streamlit_form_submit_testid(monkeypatch):
     assert "color: var(--pf-primary-text) !important" in css
     assert "--pf-primary: #334155" in css
     assert "--pf-primary-text: #f8fafc" in css
+    assert '[data-testid="stSidebar"] [data-testid="stIconMaterial"]' in css
+    assert "color: var(--pf-text) !important" in css
     assert '[data-testid="stTextInputField"]' in css
+    assert '[data-testid="stTextInputRootElement"]' in css
+    assert '[data-testid="stNumberInputContainer"]' in css
+    assert '[data-testid="stTimeInputTimeDisplay"]' in css
+    assert "border: 1px solid var(--pf-border) !important" in css
+    assert "border-radius: 8px" in css
     assert '[data-testid="stDateInput"] [data-react-aria-pressable="true"]' in css
     assert '[data-testid="stDateInput"] [data-testid="stDateInputField"]' in css
     assert '[data-testid="stDateInputCalendarButton"]' in css
     assert "background-color: var(--pf-panel) !important" in css
+    assert '[data-testid="stNumberInputStepDown"]' in css
+    assert '[data-testid="stNumberInputStepUp"]' in css
+    assert '[data-testid^="stNumberInputStep"]:disabled svg' in css
+    assert "color: var(--pf-muted) !important" in css
     assert '[data-testid="stSelectbox"] [role="combobox"]' in css
+    assert '[data-testid="stSelectbox"] [data-react-aria-pressable="true"]' in css
     assert "color: var(--pf-text) !important" in css
 
 

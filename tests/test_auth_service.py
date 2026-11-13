@@ -12,10 +12,22 @@ def test_register_and_authenticate_user(session):
     user = register_user(session, "Ana Silva", "ANA@example.com", "senha-segura-123")
 
     assert user.email == "ana@example.com"
+    assert user.perfil == "funcionario"
     assert user.senha_hash != "senha-segura-123"
     assert authenticate_user(session, "ana@example.com", "senha-segura-123").id == user.id
     with pytest.raises(AuthenticationError, match="inválidos"):
         authenticate_user(session, "ana@example.com", "senha-errada")
+
+
+def test_admin_registration_creates_separate_admin_account(session):
+    from services.auth_service import register_admin_user
+
+    user = register_admin_user(
+        session, "Admin da Empresa", "admin@example.com", "senha-admin-segura-123"
+    )
+
+    assert user.perfil == "admin"
+    assert user.email == "admin@example.com"
 
 
 def test_duplicate_accounts_are_rejected_case_insensitively(session):

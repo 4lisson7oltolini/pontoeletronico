@@ -14,7 +14,9 @@ class AuthenticationError(ValueError):
     """Raised when registration or login cannot be completed."""
 
 
-def register_user(session: Session, nome: str, email: str, password: str) -> Usuario:
+def _register_user(
+    session: Session, nome: str, email: str, password: str, perfil: str
+) -> Usuario:
     name = nome.strip()
     if not name or len(name) > 120:
         raise AuthenticationError("Informe seu nome (até 120 caracteres).")
@@ -33,6 +35,7 @@ def register_user(session: Session, nome: str, email: str, password: str) -> Usu
         email=normalized_email,
         senha_hash=bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("ascii"),
         criado_em=now_local(),
+        perfil=perfil,
         ativo=True,
     )
     session.add(user)
@@ -43,6 +46,17 @@ def register_user(session: Session, nome: str, email: str, password: str) -> Usu
         raise AuthenticationError("Já existe uma conta com este e-mail.") from exc
     session.refresh(user)
     return user
+
+
+def register_user(session: Session, nome: str, email: str, password: str) -> Usuario:
+    return _register_user(session, nome, email, password, perfil="funcionario")
+
+
+def register_admin_user(
+    session: Session, nome: str, email: str, password: str
+) -> Usuario:
+    """Create an administrator account for the local bootstrap command only."""
+    return _register_user(session, nome, email, password, perfil="admin")
 
 
 def authenticate_user(session: Session, email: str, password: str) -> Usuario:

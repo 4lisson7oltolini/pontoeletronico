@@ -49,6 +49,10 @@ APP_TIMEZONE = "America/Sao_Paulo"
 
 O arquivo `.env` é apenas para desenvolvimento local e não deve ser enviado ao controle de versão. Use TLS e credenciais com privilégios mínimos no serviço PostgreSQL de produção.
 
+## Criar a conta administrativa inicial
+
+Configure `DATABASE_URL` para o banco correto e aplique as migrações com `alembic upgrade head`. Em seguida, execute `python create_admin.py`. O comando solicita nome e e-mail e pede a senha sem exibi-la no terminal. Ele cria uma conta separada com perfil `admin`; o cadastro público continua criando apenas funcionários e não promove contas existentes.
+
 ## Migrações
 
 Após alterar os modelos, gere e revise a migração:

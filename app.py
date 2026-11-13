@@ -118,6 +118,10 @@ else:
         st.Page("pages/5_Relatorios.py", title="Relatórios", icon=":material/description:"),
         st.Page("pages/6_Configuracoes.py", title="Configurações", icon=":material/settings:"),
     ]
-    navigation = st.navigation(pages)
-    render_account_header(st.session_state.get("user_name", ""))
+    with st.sidebar:
+        render_account_header(st.session_state.get("user_name", ""))
+    navigation = st.navigation(pages, position="hidden")
+    with st.sidebar:
+        for page in pages:
+            st.page_link(page, width="stretch")
 navigation.run()

@@ -61,6 +61,9 @@ def apply_accessibility_preferences(preferences: PreferenciasAcessibilidade) -> 
             background: var(--pf-panel);
             color: var(--pf-text);
         }}
+        [data-testid="stSidebar"] [data-testid="stIconMaterial"] {{
+            color: var(--pf-text) !important;
+        }}
         [data-testid="stMarkdownContainer"], [data-testid="stWidgetLabel"],
         [data-testid="stCaptionContainer"], [data-testid="stMetricLabel"],
         [data-testid="stMetricValue"] {{
@@ -84,6 +87,17 @@ def apply_accessibility_preferences(preferences: PreferenciasAcessibilidade) -> 
         [data-testid="stDataFrame"], [data-testid="stForm"] {{
             border-color: var(--pf-border);
         }}
+        [data-testid="stTextInput"] [data-testid="stTextInputRootElement"],
+        [data-testid="stTextArea"] [data-testid="stTextAreaRootElement"],
+        [data-testid="stDateInput"] [data-testid="stDateInputField"],
+        [data-testid="stTimeInput"] [data-testid="stTimeInputTimeDisplay"],
+        [data-testid="stNumberInput"] [data-testid="stNumberInputContainer"],
+        [data-testid="stSelectbox"] [role="combobox"],
+        [data-testid="stMultiSelect"] [role="combobox"] {{
+            background-color: var(--pf-panel) !important;
+            border: 1px solid var(--pf-border) !important;
+            border-radius: 8px;
+        }}
         [data-testid="stTextInput"] [data-testid="stTextInputField"],
         [data-testid="stTextArea"] [data-testid="stTextAreaRootElement"],
         [data-testid="stTextArea"] textarea,
@@ -92,11 +106,17 @@ def apply_accessibility_preferences(preferences: PreferenciasAcessibilidade) -> 
         [data-testid="stTimeInput"] [data-testid="stTimeInputField"],
         [data-testid="stTimeInput"] [data-react-aria-pressable="true"],
         [data-testid="stNumberInput"] input,
+        [data-testid="stNumberInput"] [data-testid="stNumberInputStepDown"],
+        [data-testid="stNumberInput"] [data-testid="stNumberInputStepUp"],
         [data-testid="stSelectbox"] [role="combobox"],
+        [data-testid="stSelectbox"] [data-react-aria-pressable="true"],
         [data-testid="stMultiSelect"] [role="combobox"] {{
             background-color: var(--pf-panel) !important;
             color: var(--pf-text) !important;
             border-color: var(--pf-border) !important;
+        }}
+        [data-testid="stNumberInput"] [data-testid^="stNumberInputStep"]:disabled svg {{
+            color: var(--pf-muted) !important;
         }}
         [data-testid="stDateInput"] [role="spinbutton"],
         [data-testid="stTimeInput"] [role="spinbutton"] {{
