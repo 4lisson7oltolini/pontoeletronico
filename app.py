@@ -13,6 +13,7 @@ from services.preferencias_service import (
 from services.auth_service import (
     AuthenticationError,
     authenticate_user,
+    get_active_user,
     register_user,
 )
 from components.sidebar import render_account_header
@@ -97,13 +98,16 @@ if not isinstance(st.session_state.get("user_id"), int):
 else:
     try:
         with session_scope() as session:
+            active_user = get_active_user(session, st.session_state["user_id"])
             preferences = get_accessibility_preferences(
                 session, st.session_state["user_id"]
             )
+        user_role = active_user.perfil
         apply_accessibility_preferences(preferences)
-    except PreferenciasError:
+    except (AuthenticationError, PreferenciasError):
         st.session_state.pop("user_id", None)
         st.session_state.pop("user_name", None)
+        st.session_state.pop("monthly_report_result", None)
         st.rerun()
     except (SQLAlchemyError, RuntimeError):
         logger.exception("Falha ao carregar preferências de acessibilidade.")
@@ -118,6 +122,10 @@ else:
         st.Page("pages/5_Relatorios.py", title="Relatórios", icon=":material/description:"),
         st.Page("pages/6_Configuracoes.py", title="Configurações", icon=":material/settings:"),
     ]
+    if user_role in {"rh", "admin"}:
+        pages.append(st.Page("pages/7_RH.py", title="Gestão de RH", icon=":material/groups:"))
+    if user_role == "admin":
+        pages.append(st.Page("pages/8_Admin.py", title="Administração", icon=":material/admin_panel_settings:"))
     with st.sidebar:
         render_account_header(st.session_state.get("user_name", ""))
     navigation = st.navigation(pages, position="hidden")

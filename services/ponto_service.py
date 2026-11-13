@@ -236,7 +236,7 @@ def list_punches(
     )
 
 
-def correct_punch(
+def _stage_punch_correction(
     session: Session, user_id: int, punch_id: int, corrected_at: datetime, justification: str
 ) -> AjustePonto:
     reason = justification.strip()
@@ -286,11 +286,20 @@ def correct_punch(
         criado_em=now_local(),
     )
     session.add(adjustment)
+    return adjustment
+
+
+def correct_punch(
+    session: Session, user_id: int, punch_id: int, corrected_at: datetime, justification: str
+) -> AjustePonto:
+    adjustment = _stage_punch_correction(
+        session, user_id, punch_id, corrected_at, justification
+    )
     session.commit()
     return adjustment
 
 
-def add_retroactive_punch(
+def _stage_retroactive_punch(
     session: Session,
     user_id: int,
     day: date,
@@ -340,6 +349,20 @@ def add_retroactive_punch(
             operacao="inclusao",
             criado_em=now_local(),
         )
+    )
+    return punch
+
+
+def add_retroactive_punch(
+    session: Session,
+    user_id: int,
+    day: date,
+    tipo_registro: str,
+    punch_time: time,
+    justification: str,
+) -> RegistroPonto:
+    punch = _stage_retroactive_punch(
+        session, user_id, day, tipo_registro, punch_time, justification
     )
     session.commit()
     session.refresh(punch)

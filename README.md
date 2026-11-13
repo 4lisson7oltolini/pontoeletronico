@@ -72,7 +72,9 @@ alembic upgrade head
 
 ## Ajustes retroativos e acessibilidade
 
-Na tela **Histórico**, é possível corrigir marcações e adicionar marcações esquecidas em dias anteriores a hoje do mês atual. Toda mudança exige justificativa; registros originais são preservados e o horário corrigido passa a ser o horário efetivo exibido. A sequência de marcações é validada e os dados continuam limitados à conta autenticada.
+Na tela **Histórico**, funcionários podem solicitar correções e inclusões esquecidas em dias anteriores a hoje do mês atual. Os pedidos exigem justificativa, ficam pendentes até decisão do RH e não alteram as marcações antes da aprovação. A decisão e o responsável ficam auditados; registros originais são preservados.
+
+As contas têm perfil `admin`, `rh` ou `funcionario`. Funcionários veem somente os próprios dados; RH e administração podem consultar dados dos funcionários e revisar pedidos. A tela **Administração** gerencia perfis e ativações, sem permitir desativar o último administrador. A tela **Gestão de RH** mostra jornadas e marcações dos funcionários e exporta a planilha de jornadas.
 
 Em **Configurações pessoais**, tema (claro, escuro ou conforme o dispositivo), alto contraste, tamanho do texto e redução de animações são salvos por conta.
 

@@ -14,6 +14,15 @@ class AuthenticationError(ValueError):
     """Raised when registration or login cannot be completed."""
 
 
+class AuthorizationError(PermissionError):
+    """Raised when a user lacks the required account role."""
+
+
+def assert_user_role(user: Usuario, allowed_roles: tuple[str, ...]) -> None:
+    if user.perfil not in allowed_roles:
+        raise AuthorizationError("Você não tem permissão para acessar esta página.")
+
+
 def _register_user(
     session: Session, nome: str, email: str, password: str, perfil: str
 ) -> Usuario:

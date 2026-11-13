@@ -9,12 +9,15 @@ from components.auth import require_user
 from database.connection import session_scope
 from services.ponto_service import (
     PUNCH_SEQUENCE,
-    PontoError,
-    add_retroactive_punch,
-    correct_punch,
     effective_punch_times,
     list_adjustments,
     list_punches,
+)
+from services.solicitacao_service import (
+    SolicitacaoError,
+    create_correction_request,
+    create_missing_punch_request,
+    list_user_requests,
 )
 from utils.datetime_utils import app_timezone, now_local
 
@@ -31,6 +34,7 @@ try:
         punches = list_punches(session, user_id)
         effective_times = effective_punch_times(session, user_id, punches)
         adjustments = list_adjustments(session, user_id)
+        requests = list_user_requests(session, user_id)
 
     if punches:
         frame = pd.DataFrame(
@@ -81,7 +85,7 @@ try:
         if submitted:
             try:
                 with session_scope() as session:
-                    add_retroactive_punch(
+                    create_missing_punch_request(
                         session,
                         user_id,
                         missed_date,
@@ -89,9 +93,9 @@ try:
                         missed_time,
                         missed_reason,
                     )
-                st.success("Marcação retroativa adicionada com justificativa.")
+                st.success("Pedido enviado para análise do RH.")
                 st.rerun()
-            except PontoError as exc:
+            except SolicitacaoError as exc:
                 st.warning(str(exc))
             except (SQLAlchemyError, RuntimeError):
                 logger.exception("Falha ao adicionar marcação retroativa.")
@@ -139,18 +143,40 @@ try:
                     )
                     try:
                         with session_scope() as session:
-                            correct_punch(
+                            create_correction_request(
                                 session, user_id, punch.id, corrected_at, justification
                             )
-                        st.success("Correção registrada; o valor anterior continua no histórico.")
+                        st.success("Pedido de correção enviado para análise do RH.")
                         st.rerun()
-                    except PontoError as exc:
+                    except SolicitacaoError as exc:
                         st.warning(str(exc))
                     except (SQLAlchemyError, RuntimeError):
                         logger.exception("Falha ao registrar ajuste de ponto.")
                         st.error("Não foi possível registrar a correção.")
 
-    st.subheader("Histórico de alterações")
+    st.subheader("Pedidos de alteração")
+    if requests:
+        st.dataframe(
+            pd.DataFrame(
+                [
+                    {
+                        "Pedido": "Inclusão" if item.operacao == "inclusao" else "Correção",
+                        "Marcação": item.tipo_registro.replace("_", " ").title(),
+                        "Horário solicitado": item.horario_solicitado.strftime("%d/%m/%Y %H:%M"),
+                        "Status": item.status.title(),
+                        "Justificativa": item.justificativa,
+                        "Observação do RH": item.observacao_decisao or "—",
+                    }
+                    for item in requests
+                ]
+            ),
+            hide_index=True,
+            width="stretch",
+        )
+    else:
+        st.caption("Nenhum pedido de alteração enviado.")
+
+    st.subheader("Histórico de alterações aprovadas")
     if adjustments:
         st.dataframe(
             pd.DataFrame(

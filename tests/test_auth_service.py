@@ -2,10 +2,13 @@ import pytest
 
 from services.auth_service import (
     AuthenticationError,
+    AuthorizationError,
     authenticate_user,
+    assert_user_role,
     get_active_user,
     register_user,
 )
+from services.admin_service import AdminError, update_account_access
 
 
 def test_register_and_authenticate_user(session):
@@ -28,6 +31,24 @@ def test_admin_registration_creates_separate_admin_account(session):
 
     assert user.perfil == "admin"
     assert user.email == "admin@example.com"
+
+
+def test_role_guard_rejects_employee_from_admin_page(session):
+    user = register_user(session, "Ana Silva", "ana@example.com", "senha-segura-123")
+
+    with pytest.raises(AuthorizationError, match="permissão"):
+        assert_user_role(user, ("admin",))
+
+
+def test_admin_cannot_demote_last_active_admin(session):
+    from services.auth_service import register_admin_user
+
+    admin = register_admin_user(
+        session, "Admin", "admin@example.com", "senha-admin-segura-123"
+    )
+
+    with pytest.raises(AdminError, match="pelo menos um administrador"):
+        update_account_access(session, admin.id, admin.id, "rh", True)
 
 
 def test_duplicate_accounts_are_rejected_case_insensitively(session):

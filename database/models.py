@@ -154,6 +154,66 @@ class AjustePonto(Base):
     usuario: Mapped[Usuario] = relationship(back_populates="ajustes_ponto")
 
 
+class SolicitacaoAjustePonto(Base):
+    __tablename__ = "solicitacoes_ajuste_ponto"
+    __table_args__ = (
+        CheckConstraint(
+            "operacao IN ('correcao', 'inclusao')",
+            name="ck_solicitacoes_ajuste_operacao",
+        ),
+        CheckConstraint(
+            "status IN ('pendente', 'aprovada', 'rejeitada')",
+            name="ck_solicitacoes_ajuste_status",
+        ),
+        CheckConstraint(
+            "(operacao = 'inclusao' AND registro_ponto_id IS NULL) OR "
+            "(operacao = 'correcao' AND registro_ponto_id IS NOT NULL)",
+            name="ck_solicitacoes_ajuste_registro",
+        ),
+        CheckConstraint(
+            "tipo_registro IN ('entrada', 'saida_intervalo', "
+            "'retorno_intervalo', 'saida')",
+            name="ck_solicitacoes_ajuste_tipo",
+        ),
+        CheckConstraint(
+            "(status = 'pendente' AND decidido_por_id IS NULL AND decidido_em IS NULL) "
+            "OR (status IN ('aprovada', 'rejeitada') AND decidido_por_id IS NOT NULL "
+            "AND decidido_em IS NOT NULL)",
+            name="ck_solicitacoes_ajuste_decisao",
+        ),
+        ForeignKeyConstraint(
+            ["registro_ponto_id", "usuario_id"],
+            ["registros_ponto.id", "registros_ponto.usuario_id"],
+            ondelete="RESTRICT",
+            name="fk_solicitacoes_registro_do_usuario",
+        ),
+        Index("ix_solicitacoes_status_data", "status", "criado_em"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    usuario_id: Mapped[int] = mapped_column(
+        ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False
+    )
+    registro_ponto_id: Mapped[int | None] = mapped_column(Integer)
+    operacao: Mapped[str] = mapped_column(String(12), nullable=False)
+    tipo_registro: Mapped[str] = mapped_column(String(24), nullable=False)
+    horario_solicitado: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    justificativa: Mapped[str] = mapped_column(String(1000), nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(12), nullable=False, default="pendente", server_default="pendente"
+    )
+    criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    decidido_por_id: Mapped[int | None] = mapped_column(
+        ForeignKey("usuarios.id", ondelete="RESTRICT")
+    )
+    decidido_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    observacao_decisao: Mapped[str | None] = mapped_column(String(1000))
+    solicitante: Mapped[Usuario] = relationship(foreign_keys=[usuario_id])
+    decisor: Mapped[Usuario | None] = relationship(foreign_keys=[decidido_por_id])
+
+
 class ConfiguracaoJornada(Base):
     __tablename__ = "configuracoes_jornada"
     __table_args__ = (
