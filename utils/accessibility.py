@@ -7,6 +7,40 @@ import streamlit as st
 from services.preferencias_service import PreferenciasAcessibilidade
 
 
+def apply_mobile_layout() -> None:
+    st.markdown(
+        """
+        <style>
+        @media (max-width: 640px) {
+            [data-testid="stMainBlockContainer"] {
+                padding-left: 0.75rem !important;
+                padding-right: 0.75rem !important;
+            }
+            [data-testid="stHorizontalBlock"] {
+                gap: 0.5rem;
+            }
+            [data-testid="stDataFrame"], [data-testid="stDataEditor"] {
+                max-width: 100%;
+                overflow-x: auto;
+            }
+            [data-testid="stMetric"] {
+                min-width: 0;
+            }
+            [data-testid="stButton"] button,
+            [data-testid="stFormSubmitButton"] button {
+                min-height: 3rem;
+                white-space: normal;
+            }
+            [data-testid="stMarkdownContainer"] {
+                overflow-wrap: anywhere;
+            }
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def apply_accessibility_preferences(preferences: PreferenciasAcessibilidade) -> None:
     scale = float(preferences.escala_texto)
     if preferences.alto_contraste:

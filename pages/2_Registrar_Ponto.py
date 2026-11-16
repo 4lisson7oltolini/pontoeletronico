@@ -8,7 +8,7 @@ from database.connection import session_scope
 from services.ponto_service import PUNCH_SEQUENCE, PontoError, register_punch
 
 logger = logging.getLogger(__name__)
-user_id, _ = require_user()
+user_id, _ = require_user("funcionario")
 
 st.title("Registrar ponto")
 st.write("As marcações usam o horário do servidor no fuso configurado. Registros não são sobrescritos.")

@@ -9,7 +9,7 @@ from io import BytesIO
 
 import pandas as pd
 from openpyxl.styles import PatternFill
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from database.models import AjustePonto, ConfiguracaoJornada, Feriado, Folga, RegistroPonto
@@ -75,6 +75,12 @@ def monthly_punches(
     start = datetime.combine(first_week_day - timedelta(days=1), time.min, tzinfo=timezone)
     end = datetime.combine(last_week_day + timedelta(days=2), time.min, tzinfo=timezone)
     return list_punches(session, user_id, start, end)
+
+
+def report_adjustment_revision(session: Session, user_id: int) -> int:
+    return session.scalar(
+        select(func.count(AjustePonto.id)).where(AjustePonto.usuario_id == user_id)
+    ) or 0
 
 
 def _hours_between(start: datetime, end: datetime) -> Decimal:

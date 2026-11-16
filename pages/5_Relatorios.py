@@ -9,6 +9,7 @@ from database.connection import session_scope
 from services.relatorio_service import (
     build_monthly_report,
     export_monthly_report_xlsx,
+    report_adjustment_revision,
 )
 from utils.datetime_utils import now_local
 
@@ -39,11 +40,13 @@ if generate_report:
                 selected_month.month,
                 as_of=today,
             )
+            adjustment_revision = report_adjustment_revision(session, user_id)
         workbook = export_monthly_report_xlsx(report, user_name)
         st.session_state["monthly_report_result"] = {
             "key": report_key,
             "report": report,
             "workbook": workbook,
+            "adjustment_revision": adjustment_revision,
         }
     except (ValueError, SQLAlchemyError, RuntimeError) as exc:
         st.session_state.pop("monthly_report_result", None)
@@ -56,6 +59,34 @@ if generate_report:
 result = st.session_state.get("monthly_report_result")
 if not result or result["key"] != report_key:
     st.caption("Selecione o período e gere o relatório para consultar os resultados.")
+    st.stop()
+
+try:
+    refreshed_report = None
+    with session_scope() as session:
+        current_adjustment_revision = report_adjustment_revision(session, user_id)
+        if current_adjustment_revision != result.get("adjustment_revision"):
+            refreshed_report = build_monthly_report(
+                session,
+                user_id,
+                selected_month.year,
+                selected_month.month,
+                as_of=today,
+            )
+            current_adjustment_revision = report_adjustment_revision(session, user_id)
+    if refreshed_report is not None:
+        workbook = export_monthly_report_xlsx(refreshed_report, user_name)
+        result = {
+            "key": report_key,
+            "report": refreshed_report,
+            "workbook": workbook,
+            "adjustment_revision": current_adjustment_revision,
+        }
+        st.session_state["monthly_report_result"] = result
+        st.info("O relatório foi atualizado com as alterações aprovadas pelo RH/admin.")
+except (SQLAlchemyError, RuntimeError):
+    logger.exception("Falha ao atualizar o relatório com alterações aprovadas.")
+    st.error("Não foi possível atualizar o relatório. Tente novamente.")
     st.stop()
 
 report = result["report"]

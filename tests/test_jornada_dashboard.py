@@ -6,8 +6,12 @@ import pytest
 from sqlalchemy import event
 
 from database.models import AjustePonto, ConfiguracaoJornada, RegistroPonto
-from services.auth_service import register_user
-from services.dashboard_service import dashboard_summary
+from services.auth_service import AuthorizationError, register_admin_user, register_user
+from services.dashboard_service import (
+    dashboard_context,
+    dashboard_summary,
+    dashboard_summary_for_actor,
+)
 from services.jornada_service import JornadaError, get_schedule, save_schedule
 
 
@@ -66,6 +70,42 @@ def test_dashboard_summary_only_counts_authenticated_account(session):
     assert summary["monthly_worked_hours"] == Decimal("0.00")
     assert summary["latest_punch"].usuario_id == first.id
     assert summary["latest_punch_time"].hour == 10
+
+
+def test_dashboard_employee_list_is_available_only_to_rh_and_admin(session):
+    rh = register_user(session, "RH", "rh@example.com", "senha-rh-segura-123")
+    rh.perfil = "rh"
+    z_employee = register_user(
+        session, "Zeca Silva", "zeca@example.com", "senha-zeca-segura-123"
+    )
+    a_employee = register_user(
+        session, "Ana Silva", "ana@example.com", "senha-ana-segura-123"
+    )
+    admin = register_admin_user(
+        session, "Admin", "admin@example.com", "senha-admin-segura-123"
+    )
+
+    rh_role, employees = dashboard_context(session, rh.id)
+
+    assert rh_role == "rh"
+    assert [employee.id for employee in employees] == [a_employee.id, z_employee.id]
+    admin_role, admin_employees = dashboard_context(session, admin.id)
+    assert admin_role == "admin"
+    assert [employee.id for employee in admin_employees] == [a_employee.id, z_employee.id]
+    employee_role, employee_options = dashboard_context(session, a_employee.id)
+    assert employee_role == "funcionario"
+    assert employee_options == []
+    dashboard_summary_for_actor(
+        session, rh.id, a_employee.id, datetime(2026, 11, 16).date()
+    )
+    with pytest.raises(AuthorizationError):
+        dashboard_summary_for_actor(
+            session, rh.id, admin.id, datetime(2026, 11, 16).date()
+        )
+    with pytest.raises(AuthorizationError):
+        dashboard_summary_for_actor(
+            session, a_employee.id, z_employee.id, datetime(2026, 11, 16).date()
+        )
 
 
 def test_dashboard_query_count_stays_bounded_with_long_history(session):

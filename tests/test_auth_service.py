@@ -40,6 +40,15 @@ def test_role_guard_rejects_employee_from_admin_page(session):
         assert_user_role(user, ("admin",))
 
 
+@pytest.mark.parametrize("role", ["rh", "admin"])
+def test_rh_and_admin_cannot_register_employee_punches(session, role):
+    user = register_user(session, "Ana Silva", "ana@example.com", "senha-segura-123")
+    user.perfil = role
+
+    with pytest.raises(AuthorizationError, match="permissão"):
+        assert_user_role(user, ("funcionario",))
+
+
 def test_admin_cannot_demote_last_active_admin(session):
     from services.auth_service import register_admin_user
 

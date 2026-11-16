@@ -7,6 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from components.auth import require_user
 from database.connection import session_scope
+from services.auth_service import AuthenticationError, AuthorizationError
 from services.ponto_service import (
     PUNCH_SEQUENCE,
     effective_punch_times,
@@ -17,24 +18,62 @@ from services.solicitacao_service import (
     SolicitacaoError,
     create_correction_request,
     create_missing_punch_request,
+    list_employee_requests_for_hr,
     list_user_requests,
 )
+from services.rh_service import employee_selection_context, get_hr_employee
 from utils.datetime_utils import app_timezone, now_local
 
 logger = logging.getLogger(__name__)
-user_id, _ = require_user()
+actor_id, _ = require_user()
 
 st.title("Histórico de ponto")
+try:
+    with session_scope() as session:
+        actor, employees = employee_selection_context(session, actor_id)
+except (AuthenticationError, AuthorizationError):
+    st.error("Sua conta não tem permissão para acessar este histórico.")
+    st.stop()
+except (SQLAlchemyError, RuntimeError):
+    logger.exception("Falha ao carregar funcionários para o histórico.")
+    st.error("Não foi possível carregar os funcionários.")
+    st.stop()
+
+read_only = actor.perfil in {"rh", "admin"}
+if read_only:
+    if not employees:
+        st.info("Ainda não há funcionários cadastrados.")
+        st.stop()
+    employee_names = {employee.id: employee.nome for employee in employees}
+    employee_labels = {
+        employee.id: f"{employee.nome} · {employee.email}" for employee in employees
+    }
+    selected_user_id = st.selectbox(
+        "Funcionário",
+        options=list(employee_names),
+        format_func=employee_labels.__getitem__,
+        key="history_employee_id",
+    )
+    st.caption(f"Histórico de {employee_names[selected_user_id]} · somente leitura.")
+else:
+    selected_user_id = actor_id
+
 today = now_local().date()
 month_start = today.replace(day=1)
 latest_past_date = today.fromordinal(today.toordinal() - 1)
 
 try:
     with session_scope() as session:
-        punches = list_punches(session, user_id)
-        effective_times = effective_punch_times(session, user_id, punches)
-        adjustments = list_adjustments(session, user_id)
-        requests = list_user_requests(session, user_id)
+        if read_only:
+            get_hr_employee(session, actor_id, selected_user_id)
+        punches = list_punches(session, selected_user_id)
+        effective_times = effective_punch_times(session, selected_user_id, punches)
+        adjustments = list_adjustments(session, selected_user_id)
+        requests = (
+            list_employee_requests_for_hr(session, actor_id, selected_user_id)
+            if read_only
+            else list_user_requests(session, actor_id)
+        )
 
     if punches:
         frame = pd.DataFrame(
@@ -51,13 +90,20 @@ try:
         )
         st.dataframe(frame, hide_index=True, width="stretch")
     else:
-        st.info("Você ainda não possui marcações.")
+        st.info(
+            "Este funcionário ainda não possui marcações."
+            if read_only
+            else "Você ainda não possui marcações."
+        )
 
-    if today > month_start:
+    if read_only:
+        st.info("Este histórico está em modo somente leitura.")
+    elif today > month_start:
         st.subheader("Adicionar marcação esquecida")
         st.caption(
             "Disponível para dias anteriores a hoje deste mês. "
-            "A inclusão exige justificativa e fica registrada no histórico de ajustes."
+            "Se já houver uma marcação do mesmo tipo, o pedido será tratado como correção. "
+            "Toda alteração exige justificativa e aprovação do RH/admin."
         )
         with st.form("add_retroactive_punch"):
             missed_date = st.date_input(
@@ -87,7 +133,7 @@ try:
                 with session_scope() as session:
                     create_missing_punch_request(
                         session,
-                        user_id,
+                        actor_id,
                         missed_date,
                         missed_type,
                         missed_time,
@@ -103,11 +149,15 @@ try:
     else:
         st.info("No primeiro dia do mês ainda não existem dias anteriores deste mês para editar.")
 
-    editable_punches = [
-        punch
-        for punch in punches
-        if month_start <= effective_times[punch.id].date() < today
-    ]
+    editable_punches = (
+        [
+            punch
+            for punch in punches
+            if month_start <= effective_times[punch.id].date() < today
+        ]
+        if not read_only
+        else []
+    )
     if editable_punches:
         st.subheader("Corrigir marcações anteriores")
         st.caption(
@@ -144,7 +194,11 @@ try:
                     try:
                         with session_scope() as session:
                             create_correction_request(
-                                session, user_id, punch.id, corrected_at, justification
+                                session,
+                                actor_id,
+                                punch.id,
+                                corrected_at,
+                                justification,
                             )
                         st.success("Pedido de correção enviado para análise do RH.")
                         st.rerun()
@@ -204,3 +258,6 @@ try:
 except (SQLAlchemyError, RuntimeError):
     logger.exception("Falha ao carregar histórico.")
     st.error("Não foi possível carregar seu histórico.")
+except (AuthenticationError, AuthorizationError) as exc:
+    st.error(str(exc))
+    st.stop()

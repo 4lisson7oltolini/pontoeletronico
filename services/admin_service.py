@@ -4,6 +4,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from database.models import Usuario
+from services.audit_service import record_audit_event
 from services.auth_service import (
     AuthorizationError,
     assert_user_role,
@@ -46,6 +47,8 @@ def update_account_access(
     if target is None:
         raise AdminError("Conta não encontrada.")
 
+    previous_profile = target.perfil
+    previous_active = target.ativo
     removing_active_admin = (
         target.perfil == "admin"
         and target.ativo
@@ -66,6 +69,20 @@ def update_account_access(
 
     target.perfil = profile
     target.ativo = active
+    record_audit_event(
+        session,
+        "account.access_updated",
+        actor_id=actor_id,
+        target_id=target.id,
+        entity="usuario",
+        entity_id=target.id,
+        details={
+            "old_profile": previous_profile,
+            "new_profile": profile,
+            "old_active": previous_active,
+            "new_active": active,
+        },
+    )
     session.commit()
     session.refresh(target)
     return target

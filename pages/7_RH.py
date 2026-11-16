@@ -6,6 +6,7 @@ import streamlit as st
 from sqlalchemy.exc import SQLAlchemyError
 
 from components.auth import require_user
+from components.password_reset import render_admin_reset_links
 from database.connection import session_scope
 from services.auth_service import AuthorizationError
 from services.rh_service import get_hr_overview
@@ -97,3 +98,6 @@ if pending_requests:
 					st.error("Não foi possível registrar a decisão.")
 else:
 	st.caption("Nenhum pedido aguardando análise.")
+
+st.divider()
+render_admin_reset_links(reviewer_id)

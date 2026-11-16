@@ -4,8 +4,44 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from database.models import ConfiguracaoJornada, RegistroPonto, Usuario
-from services.auth_service import assert_user_role, get_active_user
+from services.auth_service import AuthorizationError, assert_user_role, get_active_user
 from services.ponto_service import effective_punch_times, list_punches
+
+
+def _list_employees(session: Session) -> list[Usuario]:
+    return list(
+        session.scalars(
+            select(Usuario)
+            .where(Usuario.perfil == "funcionario")
+            .order_by(Usuario.nome, Usuario.id)
+        )
+    )
+
+
+def employee_selection_context(
+    session: Session, actor_id: int
+) -> tuple[Usuario, list[Usuario]]:
+    actor = get_active_user(session, actor_id)
+    employees = (
+        _list_employees(session) if actor.perfil in {"rh", "admin"} else []
+    )
+    return actor, employees
+
+
+def get_hr_employee(
+    session: Session, actor_id: int, employee_id: int
+) -> Usuario:
+    actor = get_active_user(session, actor_id)
+    assert_user_role(actor, ("rh", "admin"))
+    employee = session.scalar(
+        select(Usuario).where(
+            Usuario.id == employee_id,
+            Usuario.perfil == "funcionario",
+        )
+    )
+    if employee is None:
+        raise AuthorizationError("Funcionário selecionado não encontrado.")
+    return employee
 
 
 def get_hr_overview(
@@ -14,13 +50,7 @@ def get_hr_overview(
     actor = get_active_user(session, actor_id)
     assert_user_role(actor, ("rh", "admin"))
 
-    employees = list(
-        session.scalars(
-            select(Usuario)
-            .where(Usuario.perfil == "funcionario")
-            .order_by(Usuario.nome, Usuario.id)
-        )
-    )
+    employees = _list_employees(session)
     employee_ids = [employee.id for employee in employees]
     schedules = {}
     if employee_ids:

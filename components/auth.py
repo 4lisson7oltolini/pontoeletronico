@@ -35,6 +35,8 @@ def require_user(*allowed_roles: str):
     except AuthenticationError:
         st.session_state.pop("user_id", None)
         st.session_state.pop("user_name", None)
+        st.session_state.pop("remember_token", None)
+        st.session_state["clear_session_cookie"] = True
         st.warning("Sua sessão expirou. Entre novamente.")
         st.switch_page("app.py")
         st.stop()

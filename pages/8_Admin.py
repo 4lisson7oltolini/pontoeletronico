@@ -4,6 +4,7 @@ import streamlit as st
 from sqlalchemy.exc import SQLAlchemyError
 
 from components.auth import require_user
+from components.password_reset import render_admin_reset_links
 from database.connection import session_scope
 from services.admin_service import (
 	USER_ROLES,
@@ -71,3 +72,6 @@ if submitted:
 	except (AuthorizationError, SQLAlchemyError, RuntimeError):
 		logger.exception("Falha ao atualizar acesso da conta.")
 		st.error("Não foi possível atualizar o acesso.")
+
+	st.divider()
+	render_admin_reset_links(admin_id)

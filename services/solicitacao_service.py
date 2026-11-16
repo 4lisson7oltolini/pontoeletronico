@@ -6,10 +6,16 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from database.models import RegistroPonto, SolicitacaoAjustePonto, Usuario
+from services.audit_service import record_audit_event
 from services.auth_service import assert_user_role, get_active_user
+from services.notificacao_service import (
+    notify_pending_request,
+    notify_request_decision,
+)
 from services.ponto_service import (
     PUNCH_SEQUENCE,
     PontoError,
+    _punches_for_day,
     _stage_punch_correction,
     _stage_retroactive_punch,
     effective_punch_times,
@@ -46,6 +52,26 @@ def create_missing_punch_request(
     if tipo_registro not in PUNCH_SEQUENCE:
         raise SolicitacaoError("Tipo de marcação inválido.")
     reason = _validate_request(day, justification)
+    timestamp = datetime.combine(day, punch_time, tzinfo=app_timezone())
+    existing_punches = [
+        punch
+        for punch in _punches_for_day(session, user_id, day)
+        if punch.tipo_registro == tipo_registro
+    ]
+    if len(existing_punches) > 1:
+        raise SolicitacaoError(
+            "Há mais de uma marcação desse tipo neste dia. "
+            "Solicite a correção pelo histórico."
+        )
+    if existing_punches:
+        return create_correction_request(
+            session,
+            user_id,
+            existing_punches[0].id,
+            timestamp,
+            reason,
+        )
+
     day_start = datetime.combine(day, time.min, tzinfo=app_timezone())
     day_end = datetime.combine(date.fromordinal(day.toordinal() + 1), time.min, tzinfo=app_timezone())
     duplicate = session.scalar(
@@ -61,7 +87,6 @@ def create_missing_punch_request(
     if duplicate is not None:
         raise SolicitacaoError("Já existe um pedido pendente para essa marcação.")
 
-    timestamp = datetime.combine(day, punch_time, tzinfo=app_timezone())
     request = SolicitacaoAjustePonto(
         usuario_id=user_id,
         registro_ponto_id=None,
@@ -72,6 +97,21 @@ def create_missing_punch_request(
         criado_em=now_local(),
     )
     session.add(request)
+    session.flush()
+    notify_pending_request(session, request, user.nome)
+    record_audit_event(
+        session,
+        "punch_change.requested",
+        actor_id=user_id,
+        target_id=user_id,
+        entity="solicitacao_ajuste_ponto",
+        entity_id=request.id,
+        details={
+            "operation": request.operacao,
+            "punch_type": request.tipo_registro,
+            "requested_at": request.horario_solicitado.isoformat(),
+        },
+    )
     session.commit()
     session.refresh(request)
     return request
@@ -84,7 +124,7 @@ def create_correction_request(
     corrected_at: datetime,
     justification: str,
 ) -> SolicitacaoAjustePonto:
-    get_active_user(session, user_id)
+    user = get_active_user(session, user_id)
     punch = session.scalar(
         select(RegistroPonto).where(
             RegistroPonto.id == punch_id,
@@ -122,6 +162,21 @@ def create_correction_request(
         criado_em=now_local(),
     )
     session.add(request)
+    session.flush()
+    notify_pending_request(session, request, user.nome)
+    record_audit_event(
+        session,
+        "punch_change.requested",
+        actor_id=user_id,
+        target_id=user_id,
+        entity="solicitacao_ajuste_ponto",
+        entity_id=request.id,
+        details={
+            "operation": request.operacao,
+            "punch_type": request.tipo_registro,
+            "requested_at": request.horario_solicitado.isoformat(),
+        },
+    )
     session.commit()
     session.refresh(request)
     return request
@@ -131,6 +186,28 @@ def list_user_requests(
     session: Session, user_id: int
 ) -> list[SolicitacaoAjustePonto]:
     get_active_user(session, user_id)
+    return _list_requests_for_user(session, user_id)
+
+
+def list_employee_requests_for_hr(
+    session: Session, reviewer_id: int, employee_id: int
+) -> list[SolicitacaoAjustePonto]:
+    reviewer = get_active_user(session, reviewer_id)
+    assert_user_role(reviewer, ("rh", "admin"))
+    employee_exists = session.scalar(
+        select(Usuario.id).where(
+            Usuario.id == employee_id,
+            Usuario.perfil == "funcionario",
+        )
+    )
+    if employee_exists is None:
+        raise SolicitacaoError("Funcionário não encontrado.")
+    return _list_requests_for_user(session, employee_id)
+
+
+def _list_requests_for_user(
+    session: Session, user_id: int
+) -> list[SolicitacaoAjustePonto]:
     return list(
         session.scalars(
             select(SolicitacaoAjustePonto)
@@ -207,6 +284,20 @@ def decide_request(
     request.decidido_por_id = reviewer_id
     request.decidido_em = now_local()
     request.observacao_decisao = note
+    notify_request_decision(session, request)
+    record_audit_event(
+        session,
+        "punch_change.decided",
+        actor_id=reviewer_id,
+        target_id=request.usuario_id,
+        entity="solicitacao_ajuste_ponto",
+        entity_id=request.id,
+        details={
+            "status": request.status,
+            "operation": request.operacao,
+            "punch_type": request.tipo_registro,
+        },
+    )
     session.commit()
     session.refresh(request)
     return request

@@ -6,6 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from database.models import AjustePonto, RegistroPonto, Usuario
+from services.audit_service import record_audit_event
 from utils.datetime_utils import app_timezone, now_local
 
 PUNCH_SEQUENCE = ("entrada", "saida_intervalo", "retorno_intervalo", "saida")
@@ -216,6 +217,20 @@ def register_punch(
         criado_em=timestamp,
     )
     session.add(punch)
+    session.flush()
+    record_audit_event(
+        session,
+        "punch.registered",
+        actor_id=user_id,
+        target_id=user_id,
+        entity="registro_ponto",
+        entity_id=punch.id,
+        details={
+            "punch_type": tipo_registro,
+            "timestamp": timestamp.isoformat(),
+            "origin": origem,
+        },
+    )
     session.commit()
     session.refresh(punch)
     return punch
@@ -295,6 +310,16 @@ def correct_punch(
     adjustment = _stage_punch_correction(
         session, user_id, punch_id, corrected_at, justification
     )
+    session.flush()
+    record_audit_event(
+        session,
+        "punch.corrected",
+        actor_id=user_id,
+        target_id=user_id,
+        entity="ajuste_ponto",
+        entity_id=adjustment.id,
+        details={"punch_id": punch_id},
+    )
     session.commit()
     return adjustment
 
@@ -363,6 +388,19 @@ def add_retroactive_punch(
 ) -> RegistroPonto:
     punch = _stage_retroactive_punch(
         session, user_id, day, tipo_registro, punch_time, justification
+    )
+    session.flush()
+    record_audit_event(
+        session,
+        "punch.retroactive_added",
+        actor_id=user_id,
+        target_id=user_id,
+        entity="registro_ponto",
+        entity_id=punch.id,
+        details={
+            "punch_type": tipo_registro,
+            "timestamp": punch.data_hora.isoformat(),
+        },
     )
     session.commit()
     session.refresh(punch)

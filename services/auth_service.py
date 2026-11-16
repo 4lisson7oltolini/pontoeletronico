@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from database.models import Usuario
+from services.audit_service import record_audit_event
 from utils.datetime_utils import now_local
 from utils.validators import normalize_email, validate_password
 
@@ -49,6 +50,16 @@ def _register_user(
     )
     session.add(user)
     try:
+        session.flush()
+        record_audit_event(
+            session,
+            "account.created",
+            actor_id=user.id,
+            target_id=user.id,
+            entity="usuario",
+            entity_id=user.id,
+            details={"profile": perfil},
+        )
         session.commit()
     except IntegrityError as exc:
         session.rollback()
@@ -81,7 +92,30 @@ def authenticate_user(session: Session, email: str, password: str) -> Usuario:
         or len(password.encode("utf-8")) > 72
         or not bcrypt.checkpw(password.encode("utf-8"), user.senha_hash.encode("ascii"))
     ):
+        attempted_email = (
+            normalized_email
+            if normalized_email
+            else str(email).strip().casefold()[:254]
+        )
+        record_audit_event(
+            session,
+            "auth.login_failed",
+            target_id=user.id if user is not None else None,
+            entity="usuario",
+            entity_id=user.id if user is not None else None,
+            details={"attempted_email": attempted_email},
+        )
+        session.commit()
         raise AuthenticationError("E-mail ou senha inválidos.")
+    record_audit_event(
+        session,
+        "auth.login_succeeded",
+        actor_id=user.id,
+        target_id=user.id,
+        entity="usuario",
+        entity_id=user.id,
+    )
+    session.commit()
     return user
 
 

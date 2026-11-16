@@ -5,7 +5,11 @@ import pytest
 
 from database.models import ConfiguracaoJornada, RegistroPonto
 from services.auth_service import AuthorizationError, register_admin_user, register_user
-from services.rh_service import get_hr_overview
+from services.rh_service import (
+    employee_selection_context,
+    get_hr_employee,
+    get_hr_overview,
+)
 
 
 def test_hr_can_access_employee_schedules_and_punches(session):
@@ -36,7 +40,13 @@ def test_hr_can_access_employee_schedules_and_punches(session):
     session.commit()
 
     employees, schedules, punches = get_hr_overview(session, hr.id)
+    actor, options = employee_selection_context(session, hr.id)
 
+    assert actor.id == hr.id
+    assert [item.id for item in options] == [employee.id]
+    assert get_hr_employee(session, hr.id, employee.id).id == employee.id
+    with pytest.raises(AuthorizationError):
+        get_hr_employee(session, hr.id, hr.id)
     assert [item.id for item in employees] == [employee.id]
     assert schedules[0]["Horas semanais"] == 40.0
     assert punches[0]["Funcionário"] == "Funcionária"
@@ -50,6 +60,8 @@ def test_employee_cannot_access_hr_overview(session):
 
     with pytest.raises(AuthorizationError):
         get_hr_overview(session, employee.id)
+    with pytest.raises(AuthorizationError):
+        get_hr_employee(session, employee.id, employee.id)
 
 
 def test_admin_can_access_hr_overview(session):

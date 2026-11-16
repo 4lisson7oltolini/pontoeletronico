@@ -12,6 +12,7 @@ from sqlalchemy import (
     ForeignKeyConstraint,
     Index,
     Integer,
+    JSON,
     Numeric,
     String,
     Time,
@@ -259,3 +260,74 @@ class Feriado(Base):
     tipo: Mapped[str] = mapped_column(String(40), nullable=False)
 
     usuario: Mapped[Usuario] = relationship(back_populates="feriados")
+
+
+class Notificacao(Base):
+    __tablename__ = "notificacoes"
+    __table_args__ = (
+        Index(
+            "ix_notificacoes_usuario_lida_criada",
+            "usuario_id",
+            "lida_em",
+            "criada_em",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    usuario_id: Mapped[int] = mapped_column(
+        ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False
+    )
+    solicitacao_id: Mapped[int | None] = mapped_column(
+        ForeignKey("solicitacoes_ajuste_ponto.id", ondelete="SET NULL")
+    )
+    tipo: Mapped[str] = mapped_column(String(32), nullable=False)
+    titulo: Mapped[str] = mapped_column(String(120), nullable=False)
+    mensagem: Mapped[str] = mapped_column(String(500), nullable=False)
+    criada_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    lida_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class EventoAuditoria(Base):
+    __tablename__ = "eventos_auditoria"
+    __table_args__ = (
+        Index("ix_eventos_auditoria_criado_id", "criado_em", "id"),
+        Index(
+            "ix_eventos_auditoria_alvo_criado",
+            "alvo_usuario_id",
+            "criado_em",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    ator_usuario_id: Mapped[int | None] = mapped_column(
+        ForeignKey("usuarios.id", ondelete="SET NULL")
+    )
+    alvo_usuario_id: Mapped[int | None] = mapped_column(
+        ForeignKey("usuarios.id", ondelete="SET NULL")
+    )
+    acao: Mapped[str] = mapped_column(String(64), nullable=False)
+    entidade: Mapped[str | None] = mapped_column(String(40))
+    entidade_id: Mapped[int | None] = mapped_column(Integer)
+    detalhes: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class TokenRedefinicaoSenha(Base):
+    __tablename__ = "tokens_redefinicao_senha"
+    __table_args__ = (
+        Index("ix_tokens_redefinicao_usuario_expira", "usuario_id", "expira_em"),
+        Index("ix_tokens_redefinicao_hash", "token_hash", unique=True),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    usuario_id: Mapped[int] = mapped_column(
+        ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False
+    )
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    canal: Mapped[str] = mapped_column(String(12), nullable=False)
+    criado_por_id: Mapped[int | None] = mapped_column(
+        ForeignKey("usuarios.id", ondelete="SET NULL")
+    )
+    criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expira_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    usado_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
