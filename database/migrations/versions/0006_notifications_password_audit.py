@@ -1,12 +1,12 @@
 """Add in-app notifications, password reset tokens, and audit events.
 
-Revision ID: 0006_notifications_password_audit
+Revision ID: 0006_notify_reset_audit
 Revises: 0005_punch_requests
 """
 from alembic import op
 import sqlalchemy as sa
 
-revision = "0006_notifications_password_audit"
+revision = "0006_notify_reset_audit"
 down_revision = "0005_punch_requests"
 branch_labels = None
 depends_on = None
