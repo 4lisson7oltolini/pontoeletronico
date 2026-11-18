@@ -331,3 +331,38 @@ class TokenRedefinicaoSenha(Base):
     criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     expira_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     usado_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class EnvioRelatorioMensal(Base):
+    __tablename__ = "envios_relatorios_mensais"
+    __table_args__ = (
+        UniqueConstraint(
+            "usuario_id",
+            "ano",
+            "mes",
+            name="uq_envios_relatorios_usuario_periodo",
+        ),
+        CheckConstraint("mes BETWEEN 1 AND 12", name="ck_envios_relatorios_mes"),
+        CheckConstraint(
+            "status IN ('pendente', 'enviado')",
+            name="ck_envios_relatorios_status",
+        ),
+        Index(
+            "ix_envios_relatorios_status_periodo",
+            "status",
+            "ano",
+            "mes",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    usuario_id: Mapped[int] = mapped_column(
+        ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False
+    )
+    ano: Mapped[int] = mapped_column(Integer, nullable=False)
+    mes: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(12), nullable=False, default="pendente", server_default="pendente"
+    )
+    criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    enviado_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

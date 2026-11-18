@@ -38,10 +38,10 @@ O primeiro acesso permite criar uma conta individual. Não há usuário ou dados
 | Variável | Obrigatória | Descrição |
 |---|---|---|
 | `DATABASE_URL` | Sim | URL SQLAlchemy do PostgreSQL, por exemplo `postgresql+psycopg://usuario:senha@localhost:5432/ponto_facil`. |
-| `APP_TIMEZONE` | Não | Fuso usado para registros; padrão `America/Sao_Paulo`. |
+| `APP_TIMEZONE` | Não | Fuso usado para registros e relatórios; padrão `America/Sao_Paulo`. |
 | `SESSION_SECRET` | Recomendada | Chave aleatória persistente para assinar a sessão lembrada. Gere com `python -c "import secrets; print(secrets.token_urlsafe(32))"`. Sem ela, sessões serão invalidadas ao reiniciar o processo ou trocar de instância. |
 | `APP_BASE_URL` | Para redefinição | URL pública do app, sem query string; use HTTPS em produção. Usada nos links de redefinição. |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM` | Para redefinição por e-mail | Servidor, porta e remetente do serviço de e-mail. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM` | Para e-mails | Servidor, porta e remetente usados na recuperação de senha e nos relatórios automáticos. |
 | `SMTP_USER`, `SMTP_PASSWORD` | Opcional | Credenciais SMTP; configure ambas ou nenhuma. |
 | `SMTP_USE_SSL`, `SMTP_STARTTLS` | Opcional | Transporte SMTP seguro. Use SSL ou STARTTLS; TLS é exigido fora de localhost. |
 
@@ -113,6 +113,20 @@ A tela **Relatórios mensais** apresenta horas trabalhadas e previstas, saldo, h
 O cálculo usa a jornada diária e semanal configurada, considera as folgas planejadas/realizadas e os feriados cadastrados por conta como dias sem jornada prevista, inclui o intervalo entre entrada e saída final na duração e atribui turnos que passam da meia-noite ao dia da entrada. Horas extras semanais adicionais descontam as extras diárias já contabilizadas. Se a jornada for de 8 horas por dia e uma folga semanal, configure 48 horas semanais em **Configurações pessoais**. Dias sem as quatro marcações esperadas são sinalizados como incompletos e não entram nas horas trabalhadas.
 
 Os relatórios são gerados após confirmar o período e ficam disponíveis durante a sessão. Quando RH/admin aprova uma inclusão ou correção, o relatório em cache é recalculado na próxima abertura ou atualização da página, e o Excel também é renovado. As consultas limitam as marcações à janela do mês e às semanas envolvidas, com margem para turnos noturnos; o arquivo Excel é reutilizado ao baixar. O dashboard consulta a última marcação diretamente, sem carregar todo o histórico da conta.
+
+## Envio automático mensal ao RH
+
+O workflow `.github/workflows/monthly-reports.yml` verifica os relatórios no início de cada mês, gera um ZIP com um Excel por funcionário e envia aos e-mails de todas as contas RH ativas. O período é o mês anterior. O processamento é idempotente: uma entrega confirmada não é enviada novamente em execuções posteriores.
+
+As marcações não são apagadas nem reiniciadas no banco; somente o período dos relatórios muda. Contas de funcionário criadas até o fim do mês entram no envio, mesmo que estejam inativas no momento da execução. Se o funcionário tiver uma sequência válida de marcações ainda aberta no último dia do mês, o relatório dele fica pendente até a saída final ser registrada. Não há prazo automático para essa espera; os relatórios dos demais funcionários são enviados sem aguardar. O job volta a verificar pendências diariamente.
+
+Para habilitar:
+
+1. Aplique a migração no banco de produção com `alembic upgrade head`.
+2. No GitHub, habilite **Actions** e configure, em **Settings → Secrets and variables → Actions**, estes **Secrets**: `DATABASE_URL`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM`, `SMTP_USER` e `SMTP_PASSWORD`. `SMTP_USER` e `SMTP_PASSWORD` devem ser ambos definidos ou ambos vazios.
+3. Configure estas **Variables**: `APP_TIMEZONE` como `America/Sao_Paulo` (ou o fuso que corresponda ao cron) e, para STARTTLS padrão, `SMTP_STARTTLS` como `true`. Se usar SSL direto, defina `SMTP_USE_SSL` como `true` e `SMTP_STARTTLS` como `false`.
+
+Os Secrets do Streamlit Community Cloud não são compartilhados automaticamente com o GitHub Actions; configure-os também no repositório. O workflow verifica a cada 15 minutos durante os dias 1 e 2 UTC e faz uma verificação diária de recuperação. O cron do GitHub usa UTC e é de melhor esforço: pode atrasar e não garante execução exatamente às 00:00. A janela foi ajustada para `America/Sao_Paulo`; se usar outro fuso, revise os horários em `.github/workflows/monthly-reports.yml`. A execução manual do workflow serve para reprocessar relatórios pendentes.
 
 ## Testes
 

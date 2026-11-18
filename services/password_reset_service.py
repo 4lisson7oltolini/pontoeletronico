@@ -1,7 +1,6 @@
 """One-time password reset tokens and mail delivery."""
 
 import hashlib
-import os
 import secrets
 import smtplib
 import ssl
@@ -11,13 +10,18 @@ from email.message import EmailMessage
 from urllib.parse import urlencode, urlsplit
 
 import bcrypt
-import streamlit as st
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
-from streamlit.errors import StreamlitSecretNotFoundError
 
 from database.models import TokenRedefinicaoSenha, Usuario
 from services.audit_service import record_audit_event
+from services.email_service import (
+    EmailConfigurationError,
+    SMTPConfiguration,
+    get_smtp_configuration,
+    send_email_message,
+    setting,
+)
 from services.auth_service import (
     AuthorizationError,
     assert_user_role,
@@ -45,17 +49,6 @@ class MailConfiguration:
     use_starttls: bool
 
 
-def _setting(name: str) -> str | None:
-    value = os.getenv(name)
-    if value:
-        return value
-    try:
-        configured = st.secrets.get(name)
-    except (FileNotFoundError, StreamlitSecretNotFoundError):
-        configured = None
-    return str(configured) if configured else None
-
-
 def _validated_base_url(value: str) -> str:
     parsed = urlsplit(value.strip())
     if (
@@ -77,48 +70,23 @@ def _validated_base_url(value: str) -> str:
 
 
 def _mail_configuration() -> MailConfiguration | None:
-    host = _setting("SMTP_HOST")
-    sender = _setting("SMTP_FROM")
-    base_url = _setting("APP_BASE_URL")
-    if not host or not sender or not base_url:
+    base_url = setting("APP_BASE_URL")
+    try:
+        smtp = get_smtp_configuration()
+    except EmailConfigurationError as exc:
+        raise PasswordResetError(str(exc)) from exc
+    if smtp is None or not base_url:
         return None
 
-    try:
-        port = int(_setting("SMTP_PORT") or "587")
-    except ValueError as exc:
-        raise PasswordResetError("SMTP_PORT deve ser um número.") from exc
-    if not 1 <= port <= 65535:
-        raise PasswordResetError("SMTP_PORT está fora do intervalo permitido.")
-
-    username = _setting("SMTP_USER")
-    password = _setting("SMTP_PASSWORD")
-    if bool(username) != bool(password):
-        raise PasswordResetError(
-            "Configure SMTP_USER e SMTP_PASSWORD juntos ou deixe ambos vazios."
-        )
-
-    use_ssl = (_setting("SMTP_USE_SSL") or "false").strip().casefold() == "true"
-    use_starttls = (_setting("SMTP_STARTTLS") or "true").strip().casefold() == "true"
-    if use_ssl and use_starttls:
-        raise PasswordResetError(
-            "Use SMTP_USE_SSL ou SMTP_STARTTLS, não os dois ao mesmo tempo."
-        )
-    if not use_ssl and not use_starttls and host.casefold() not in {
-        "localhost",
-        "127.0.0.1",
-        "::1",
-    }:
-        raise PasswordResetError("O servidor SMTP precisa usar TLS.")
-
     return MailConfiguration(
-        host=host,
-        port=port,
-        sender=sender,
+        host=smtp.host,
+        port=smtp.port,
+        sender=smtp.sender,
         base_url=_validated_base_url(base_url),
-        username=username,
-        password=password,
-        use_ssl=use_ssl,
-        use_starttls=use_starttls,
+        username=smtp.username,
+        password=smtp.password,
+        use_ssl=smtp.use_ssl,
+        use_starttls=smtp.use_starttls,
     )
 
 
@@ -127,7 +95,7 @@ def email_reset_is_configured() -> bool:
 
 
 def app_base_url() -> str:
-    configured_url = _setting("APP_BASE_URL")
+    configured_url = setting("APP_BASE_URL")
     if not configured_url:
         raise PasswordResetError("Configure APP_BASE_URL para gerar links de redefinição.")
     return _validated_base_url(configured_url)
@@ -199,24 +167,19 @@ def _send_reset_email(
         "Se você não solicitou a redefinição, ignore esta mensagem."
     )
 
-    context = ssl.create_default_context()
-    if configuration.use_ssl:
-        smtp = smtplib.SMTP_SSL(
-            configuration.host,
-            configuration.port,
-            timeout=15,
-            context=context,
-        )
-    else:
-        smtp = smtplib.SMTP(
-            configuration.host, configuration.port, timeout=15
-        )
-    with smtp:
-        if configuration.use_starttls:
-            smtp.starttls(context=context)
-        if configuration.username and configuration.password:
-            smtp.login(configuration.username, configuration.password)
-        smtp.send_message(message)
+    send_email_message(
+        SMTPConfiguration(
+            host=configuration.host,
+            port=configuration.port,
+            sender=configuration.sender,
+            username=configuration.username,
+            password=configuration.password,
+            use_ssl=configuration.use_ssl,
+            use_starttls=configuration.use_starttls,
+        ),
+        message,
+        [user.email],
+    )
 
 
 def request_password_reset(session: Session, email: str) -> None:

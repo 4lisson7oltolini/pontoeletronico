@@ -88,7 +88,7 @@ def _hours_between(start: datetime, end: datetime) -> Decimal:
     return (seconds / Decimal(3600)).quantize(Decimal("0.01"))
 
 
-def _workday_groups(
+def group_punches_by_workday(
     punches: list[RegistroPonto], effective_times: dict[int, datetime]
 ) -> dict[date, list[RegistroPonto]]:
     ordered = sorted(
@@ -246,7 +246,7 @@ def build_monthly_report(
         <= last_week_day + timedelta(days=1)
     ]
     effective_times = effective_punch_times(session, user_id, punches)
-    workday_groups = _workday_groups(punches, effective_times)
+    workday_groups = group_punches_by_workday(punches, effective_times)
     days_off, holidays = _scheduled_days_data(
         session, user_id, first_week_day, last_week_day
     )
